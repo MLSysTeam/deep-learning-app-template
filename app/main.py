@@ -12,8 +12,10 @@ from .model_handler import ImageClassifier
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-# Initialize the classifier
+# Initialize the classifier when the application starts
+print("Initializing Image Classifier...")
 classifier = ImageClassifier()
+print("Image Classifier initialized successfully!")
 
 # Dependency to get DB session
 def get_db():
@@ -60,7 +62,7 @@ async def classify_image(file: UploadFile = File(...), db: Session = Depends(get
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # Classify the image
+        # Classify the image using the pre-loaded model
         predicted_class, confidence = classifier.predict(file_location)
         
         # Save classification result to database

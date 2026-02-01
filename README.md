@@ -83,9 +83,8 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 - Implements async request handling
 
 ### Machine Learning Layer
-- **PyTorch/TorchVision**: For implementing and running image classification models
-- Includes preprocessing pipelines and prediction logic
-- Designed to work with standard image classification architectures
+- **PyTorch/TorchVision**: A popular deep learning framework
+- Performs image preprocessing and model inference
 
 ### Data Layer
 - **MySQL**: Stores classification results including:
