@@ -111,7 +111,7 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 
 2. Install dependencies using UV:
    ```bash
-   uv sync # install dependencies
+   uv sync # equivalent to uv pip install -r requirements.txt
    ```
    after installation, you will see a `.venv` folder created in the project root.
 
