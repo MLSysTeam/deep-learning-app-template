@@ -13,10 +13,10 @@ A complete deep learning application template featuring a Streamlit frontend, Fa
   - [🚀 Getting Started](#-getting-started)
     - [Prerequisites](#prerequisites)
     - [Installation](#installation)
-  - [Setting up the MySQL Database (Optional)](#setting-up-the-mysql-database-optional)
-    - [Easy Setup (Recommended)](#easy-setup-recommended)
-    - [Full MySQL Setup (Production)](#full-mysql-setup-production)
-    - [Environment Configuration](#environment-configuration)
+    - [Setting up the MySQL Database (Optional)](#setting-up-the-mysql-database-optional)
+      - [Easy Setup (Recommended)](#easy-setup-recommended)
+      - [Full MySQL Setup (Production)](#full-mysql-setup-production)
+      - [Environment Configuration](#environment-configuration)
     - [Running the Application](#running-the-application)
     - [Usage](#usage)
   - [📁 Project Structure](#-project-structure)
@@ -118,11 +118,11 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 
 3. Set up the MySQL database (skip). In our example, we'll use **sqlite** for simplicity that doesn't require any setup.
 
-## Setting up the MySQL Database (Optional)
+### Setting up the MySQL Database (Optional)
 
 The application includes automatic database creation functionality with a fallback mechanism, which simplifies the setup process:
 
-### Easy Setup (Recommended)
+#### Easy Setup (Recommended)
 
 For quick testing and development, the application will automatically:
 
@@ -132,7 +132,7 @@ For quick testing and development, the application will automatically:
 
 Simply run the application and it will handle database initialization automatically!
 
-### Full MySQL Setup (Production)
+#### Full MySQL Setup (Production)
 
 If you want to use MySQL in a production setting:
 
@@ -158,7 +158,7 @@ If you want to use MySQL in a production setting:
    FLUSH PRIVILEGES;
    ```
 
-### Environment Configuration
+#### Environment Configuration
 
 Update your environment variables:
 
