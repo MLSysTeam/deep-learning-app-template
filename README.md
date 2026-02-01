@@ -111,10 +111,9 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 
 2. Install dependencies using UV:
    ```bash
-   uv sync
-   # Or if you prefer pip:
-   pip install -r requirements.txt
+   uv sync # install dependencies
    ```
+   after installation, you will see a `.venv` folder created in the project root.
 
 3. Set up the MySQL database (skip). In our example, we'll use **sqlite** for simplicity that doesn't require any setup.
 
