@@ -105,8 +105,8 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 
 1. Clone this repository:
    ```bash
-   git clone <repository-url>
-   cd <repository-name>
+   git clone --branch grounded_sam https://github.com/MLSysTeam/deep-learning-app-template.git
+   cd deep-learning-app-template
    ```
 
 2. Install dependencies using UV:
