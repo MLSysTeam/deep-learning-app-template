@@ -1,10 +1,10 @@
 # Deep Learning Application Template
 
-A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL database for image classification tasks.
+A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image classification tasks.
 
-## Table of Contents
+## 📚 Table of Contents
 - [Deep Learning Application Template](#deep-learning-application-template)
-  - [Table of Contents](#table-of-contents)
+  - [📚 Table of Contents](#-table-of-contents)
   - [🏗️ System Architecture](#️-system-architecture)
     - [Frontend Layer](#frontend-layer)
     - [Backend Layer](#backend-layer)
@@ -24,6 +24,7 @@ A complete deep learning application template featuring a Streamlit frontend, Fa
     - [Adding Your Own Model](#adding-your-own-model)
     - [Database Schema](#database-schema)
   - [🛠️ Technologies Used](#️-technologies-used)
+  - [📚 Useful Resources](#-useful-resources)
   - [🤝 Contributing](#-contributing)
   - [📄 License](#-license)
 
@@ -267,6 +268,11 @@ CREATE TABLE image_classifications (
 - **ML Framework**: PyTorch, TorchVision
 - **Package Management**: UV, pip
 - **Image Processing**: Pillow
+
+## 📚 Useful Resources
+
+- [git - the simple guide](https://rogerdudler.github.io/git-guide/)
+- [FastAPI with SQL Database](https://fastapi.tiangolo.com/tutorial/sql-databases/)
 
 ## 🤝 Contributing
 
