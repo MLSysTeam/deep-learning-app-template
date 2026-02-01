@@ -1,6 +1,6 @@
 # Deep Learning Application Template
 
-A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image classification tasks.
+A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image segmentation tasks.
 
 ## 📚 Table of Contents
 - [Deep Learning Application Template](#deep-learning-application-template)
