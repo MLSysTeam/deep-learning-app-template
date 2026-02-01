@@ -273,6 +273,8 @@ CREATE TABLE image_classifications (
   - use a different branch to work on a new feature (**recommended!**)
 - [FastAPI with SQL Database](https://fastapi.tiangolo.com/tutorial/sql-databases/) 
   - learn to use different SQL databases with FastAPI
+- [Grounded-Segment-Anything-API](https://github.com/LeanFly/Grounded-Segment-Anything-API)
+  - learn to build a FastAPI backend for Grounded-SAM
 
 ## 🤝 Contributing
 
