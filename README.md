@@ -1,6 +1,6 @@
 # Deep Learning Application Template
 
-A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image segmentation tasks.
+A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image segmentation tasks. This example uses **[Grounded-SAM model](https://github.com/IDEA-Research/Grounded-Segment-Anything)** for image segmentation but can be easily adapted to other models.
 
 ## 📚 Table of Contents
 - [Deep Learning Application Template](#deep-learning-application-template)
@@ -111,7 +111,7 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 
 2. Install dependencies using UV:
    ```bash
-   uv sync # install dependencies
+   uv sync # equivalent to uv pip install -r requirements.txt
    ```
    after installation, you will see a `.venv` folder created in the project root.
 
