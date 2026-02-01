@@ -53,8 +53,84 @@
    ```
 
 3. 设置MySQL数据库：
-   - 创建用于图像分类的数据库
-   - 在`.env`中更新数据库凭据（参见`.env.example`）
+
+应用程序现在包含带有容错机制的自动数据库创建功能，简化了设置过程：
+
+### 简单设置（推荐）
+
+对于快速测试和开发，应用程序将会自动：
+
+1. 尝试连接到配置的MySQL数据库
+2. 如果MySQL不可用或访问被拒绝，则回退到使用本地SQLite数据库
+3. 无论使用哪个数据库，都会自动创建所需的表
+
+只需运行应用程序，它就会自动处理数据库初始化！
+
+### 完整MySQL设置（生产环境）
+
+如果你想在生产环境中使用MySQL：
+
+1. **安装MySQL服务器**（一次性设置）
+   - 在Ubuntu/Debian上：`sudo apt-get install mysql-server`
+   - 在CentOS/RHEL上：`sudo yum install mysql-server`
+   - 在macOS上：`brew install mysql`
+   - 或从官方MySQL网站下载
+
+2. **启动MySQL服务**
+   ```bash
+   # 在Ubuntu/Debian上
+   sudo systemctl start mysql
+   
+   # 在macOS上
+   brew services start mysql
+   ```
+
+3. **创建具有权限的MySQL用户**（如果不使用root）
+   ```sql
+   CREATE USER 'dl_app_user'@'localhost' IDENTIFIED BY 'secure_password';
+   GRANT ALL PRIVILEGES ON *.* TO 'dl_app_user'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+
+### 环境配置
+
+更新你的环境变量：
+
+1. 复制`.env.example`到`.env`：
+   ```bash
+   cp .env.example .env
+   ```
+
+2. 使用你的MySQL凭据编辑`.env`：
+   ```bash
+   DB_USER=your_mysql_username
+   DB_PASSWORD=your_mysql_password
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_NAME=image_classification
+   ```
+
+> **注意**：如果应用程序无法连接到MySQL（由于凭据错误、MySQL未运行等原因），它将自动回退到使用本地SQLite数据库（`image_classifications.db`）进行开发和测试。
+
+### 替代方案：使用Docker运行MySQL
+
+对于专用的MySQL设置，您可以使用Docker：
+
+```bash
+docker run --name dl-mysql-container \
+  -e MYSQL_ROOT_PASSWORD=rootpassword \
+  -p 3306:3306 \
+  -d mysql:8.0
+```
+
+然后相应地更新您的`.env`文件：
+```bash
+DB_USER=root
+DB_PASSWORD=rootpassword
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=image_classification
+```
 
 4. 复制环境示例文件：
    ```bash

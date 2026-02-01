@@ -1,31 +1,30 @@
+Metadata-Version: 2.4
+Name: dl-app-template
+Version: 0.1.0
+Summary: A deep learning app template with Streamlit frontend and FastAPI backend
+Author-email: Your Name <your.email@example.com>
+License: MIT
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.68.0
+Requires-Dist: uvicorn[standard]>=0.15.0
+Requires-Dist: torch>=1.9.0
+Requires-Dist: torchvision>=0.10.0
+Requires-Dist: streamlit>=1.0.0
+Requires-Dist: sqlalchemy>=1.4.0
+Requires-Dist: pymysql>=1.0.0
+Requires-Dist: pillow>=8.0.0
+Requires-Dist: python-multipart>=0.0.5
+Requires-Dist: python-dotenv>=0.19.0
+Provides-Extra: dev
+Requires-Dist: pytest>=6.0; extra == "dev"
+Requires-Dist: black>=21.0; extra == "dev"
+Requires-Dist: flake8>=3.9; extra == "dev"
+Requires-Dist: mypy>=0.910; extra == "dev"
+
 # Deep Learning Application Template
 
 A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL database for image classification tasks.
-
-## Table of Contents
-- [Deep Learning Application Template](#deep-learning-application-template)
-  - [Table of Contents](#table-of-contents)
-  - [🏗️ System Architecture](#️-system-architecture)
-    - [Frontend Layer](#frontend-layer)
-    - [Backend Layer](#backend-layer)
-    - [Machine Learning Layer](#machine-learning-layer)
-    - [Data Layer](#data-layer)
-  - [🚀 Getting Started](#-getting-started)
-    - [Prerequisites](#prerequisites)
-    - [Installation](#installation)
-  - [Setting up the MySQL Database (Optional)](#setting-up-the-mysql-database-optional)
-    - [Easy Setup (Recommended)](#easy-setup-recommended)
-    - [Full MySQL Setup (Production)](#full-mysql-setup-production)
-    - [Environment Configuration](#environment-configuration)
-    - [Running the Application](#running-the-application)
-    - [Usage](#usage)
-  - [📁 Project Structure](#-project-structure)
-  - [🔧 Customization](#-customization)
-    - [Adding Your Own Model](#adding-your-own-model)
-    - [Database Schema](#database-schema)
-  - [🛠️ Technologies Used](#️-technologies-used)
-  - [🤝 Contributing](#-contributing)
-  - [📄 License](#-license)
 
 ## 🏗️ System Architecture
 
@@ -116,72 +115,20 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
    pip install -r requirements.txt
    ```
 
-3. Set up the MySQL database (skip). In our example, we'll use **sqlite** for simplicity that doesn't require any setup.
+3. Set up the MySQL database:
+   - Create a database for image classifications
+   - Update the database credentials in `.env` (see `.env.example`)
 
-## Setting up the MySQL Database (Optional)
-
-The application includes automatic database creation functionality with a fallback mechanism, which simplifies the setup process:
-
-### Easy Setup (Recommended)
-
-For quick testing and development, the application will automatically:
-
-1. Attempt to connect to the configured MySQL database
-2. If MySQL is unavailable or access is denied, it will fall back to using a local SQLite database
-3. Automatically create the required tables regardless of which database is used
-
-Simply run the application and it will handle database initialization automatically!
-
-### Full MySQL Setup (Production)
-
-If you want to use MySQL in a production setting:
-
-1. **Install MySQL Server** (one-time setup)
-   - On Ubuntu/Debian: `sudo apt-get install mysql-server`
-   - On CentOS/RHEL: `sudo yum install mysql-server`
-   - On macOS: `brew install mysql`
-   - Or download from the official MySQL website
-
-2. **Start the MySQL Service**
-   ```bash
-   # On Ubuntu/Debian
-   sudo systemctl start mysql
-   
-   # On macOS
-   brew services start mysql
-   ```
-
-3. **Create a MySQL User with Permissions** (if not using root)
-   ```sql
-   CREATE USER 'dl_app_user'@'localhost' IDENTIFIED BY 'secure_password';
-   GRANT ALL PRIVILEGES ON *.* TO 'dl_app_user'@'localhost';
-   FLUSH PRIVILEGES;
-   ```
-
-### Environment Configuration
-
-Update your environment variables:
-
-1. Copy `.env.example` to `.env`:
+4. Copy the environment example file:
    ```bash
    cp .env.example .env
    ```
-
-2. Edit `.env` with your MySQL credentials:
-   ```bash
-   DB_USER=your_mysql_username
-   DB_PASSWORD=your_mysql_password
-   DB_HOST=localhost
-   DB_PORT=3306
-   DB_NAME=image_classification
-   ```
-
-> **Note**: If the application cannot connect to MySQL (due to wrong credentials, MySQL not running, etc.), it will automatically fall back to using a local SQLite database (`image_classifications.db`) for development and testing purposes.
-
-
+   
+   Then update `.env` with your database credentials.
 
 ### Running the Application
 
+#### Method 1: Separate Terminals
 
 1. Start the backend (in terminal 1):
    ```bash
@@ -189,7 +136,7 @@ Update your environment variables:
    ```
    Or run directly:
    ```bash
-   uv uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
 
 2. Start the frontend (in terminal 2):
@@ -198,8 +145,24 @@ Update your environment variables:
    ```
    Or run directly:
    ```bash
-   uv streamlit run app/frontend.py
+   streamlit run app/frontend.py
    ```
+
+#### Method 2: Using Process Manager
+
+Alternatively, you can start both services using a process manager like `pm2`:
+
+1. Install pm2:
+   ```bash
+   npm install -g pm2
+   ```
+
+2. Start both services:
+   ```bash
+   pm2 start ecosystem.config.js
+   ```
+
+> Note: Create an `ecosystem.config.js` file if using PM2 (not included in this template).
 
 ### Usage
 
@@ -261,7 +224,7 @@ CREATE TABLE image_classifications (
 
 - **Frontend**: Streamlit
 - **Backend**: FastAPI
-- **Database**: MySQL/SQLite
+- **Database**: MySQL
 - **ML Framework**: PyTorch, TorchVision
 - **Package Management**: UV, pip
 - **Image Processing**: Pillow

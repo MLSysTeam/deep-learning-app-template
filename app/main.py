@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
@@ -15,6 +15,14 @@ Base.metadata.create_all(bind=engine)
 # Initialize the classifier
 classifier = ImageClassifier()
 
+# Dependency to get DB session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 # Create FastAPI app instance
 app = FastAPI(title="Image Classification API", 
               description="API for classifying images using a PyTorch model",
@@ -29,24 +37,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Dependency to get DB session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @app.get("/")
 def read_root():
     return {"message": "Image Classification API is running!"}
 
+
 @app.post("/classify/")
-async def classify_image(file: UploadFile = File(...), db: Session = None):
-    # Get database session
-    if db is None:
-        db = next(get_db())
-    
+async def classify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         # Create uploads directory if it doesn't exist
         upload_dir = "uploads"
@@ -87,27 +85,18 @@ async def classify_image(file: UploadFile = File(...), db: Session = None):
         # Rollback in case of error
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
-    
-    finally:
-        db.close()
+
 
 @app.get("/classifications/")
-def get_classifications(skip: int = 0, limit: int = 20, db: Session = None):
-    # Get database session
-    if db is None:
-        db = next(get_db())
+def get_classifications(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
+    classifications: List[ImageClassification] = db.query(ImageClassification)\
+        .order_by(ImageClassification.created_at.desc())\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
     
-    try:
-        classifications: List[ImageClassification] = db.query(ImageClassification)\
-            .order_by(ImageClassification.created_at.desc())\
-            .offset(skip)\
-            .limit(limit)\
-            .all()
-        
-        return classifications
-    
-    finally:
-        db.close()
+    return classifications
+
 
 if __name__ == "__main__":
     import uvicorn

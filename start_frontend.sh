@@ -2,4 +2,4 @@
 
 # Start the Streamlit frontend server
 echo "Starting Streamlit frontend server..."
-streamlit run app/frontend.py
+uv run streamlit run app/frontend.py
