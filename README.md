@@ -1,2 +1,214 @@
-# deep-learning-app-template
-Simple web app example serving a PyTorch model using streamlit and FastAPI
+# Deep Learning Application Template
+
+A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL database for image classification tasks.
+
+## 🏗️ System Architecture
+
+This application follows a modern, scalable architecture:
+
+```
+┌─────────────────┐    HTTP Requests     ┌──────────────────┐
+│                 │ ◄─────────────────── │                  │
+│   Streamlit     │                      │   FastAPI        │
+│   Frontend      │ ────────────────────►│   Backend        │
+│                 │                      │                  │
+│ (User Interface)│                      │ (Business Logic) │
+└─────────────────┘                      └──────────────────┘
+                                                  │
+                                                  │
+                                                  │ Image Preprocessing
+                                                  ▼
+                                      ┌─────────────────────────┐
+                                      │                         │
+                                      │    PyTorch Model        │
+                                      │   (Inference Logic)     │
+                                      │                         │
+                                      └─────────────────────────┘
+                                                  │
+                                                  │ Prediction Results
+                                                  ▼
+                                      ┌─────────────────────────┐
+                                      │                         │
+                                      │        MySQL            │
+                                      │      Database           │
+                                      │                         │
+                                      │ • Image Path            │
+                                      │ • Predicted Class       │
+                                      │ • Confidence Score      │
+                                      │ • Detection Time        │
+                                      │                         │
+                                      └─────────────────────────┘
+    
+Flow:
+User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image → 
+→ PyTorch model performs inference → Results stored in MySQL → 
+→ Response to Streamlit → Display to user
+```
+
+### Frontend Layer
+- **Streamlit**: Provides an interactive UI for uploading images and viewing classification results
+- Handles image display and prediction visualization
+- Communicates with the backend via REST APIs
+
+### Backend Layer
+- **FastAPI**: High-performance web framework for creating REST APIs
+- Handles image preprocessing and model inference
+- Manages communication with the database
+- Implements async request handling
+
+### Machine Learning Layer
+- **PyTorch/TorchVision**: For implementing and running image classification models
+- Includes preprocessing pipelines and prediction logic
+- Designed to work with standard image classification architectures
+
+### Data Layer
+- **MySQL**: Stores classification results including:
+  - Image file paths
+  - Predicted class labels
+  - Confidence scores
+  - Timestamps of predictions
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Python 3.8+
+- MySQL Server
+- [UV](https://github.com/astral-sh/uv) package manager
+
+### Installation
+
+1. Clone this repository:
+   ```bash
+   git clone <repository-url>
+   cd <repository-name>
+   ```
+
+2. Install dependencies using UV:
+   ```bash
+   uv sync
+   # Or if you prefer pip:
+   pip install -r requirements.txt
+   ```
+
+3. Set up the MySQL database:
+   - Create a database for image classifications
+   - Update the database credentials in `.env` (see `.env.example`)
+
+4. Copy the environment example file:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Then update `.env` with your database credentials.
+
+### Running the Application
+
+#### Method 1: Separate Terminals
+
+1. Start the backend (in terminal 1):
+   ```bash
+   ./start_backend.sh
+   ```
+   Or run directly:
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+2. Start the frontend (in terminal 2):
+   ```bash
+   ./start_frontend.sh
+   ```
+   Or run directly:
+   ```bash
+   streamlit run app/frontend.py
+   ```
+
+#### Method 2: Using Process Manager
+
+Alternatively, you can start both services using a process manager like `pm2`:
+
+1. Install pm2:
+   ```bash
+   npm install -g pm2
+   ```
+
+2. Start both services:
+   ```bash
+   pm2 start ecosystem.config.js
+   ```
+
+> Note: Create an `ecosystem.config.js` file if using PM2 (not included in this template).
+
+### Usage
+
+1. Access the Streamlit frontend at `http://localhost:8501`
+2. Upload an image file (JPG, PNG, etc.)
+3. Click "Classify Image" to send the image to the backend
+4. View the classification result on the frontend
+5. Results are stored in the MySQL database
+
+## 📁 Project Structure
+
+```
+.
+├── app/
+│   ├── __init__.py
+│   ├── main.py          # FastAPI backend application
+│   ├── frontend.py      # Streamlit frontend application
+│   ├── database.py      # Database models and connection
+│   └── model_handler.py # ML model handling logic
+├── uploads/             # Directory for storing uploaded images
+├── pyproject.toml       # Project dependencies and metadata
+├── requirements.txt     # Dependencies list
+├── .env.example         # Environment variables example
+├── start_backend.sh     # Script to start backend service
+├── start_frontend.sh    # Script to start frontend service
+├── README.md            # This file
+└── README_zh.md         # Chinese version of README
+```
+
+## 🔧 Customization
+
+### Adding Your Own Model
+
+To integrate your own PyTorch model:
+
+1. Modify [app/model_handler.py](app/model_handler.py) to load your model:
+   - Update the `__init__` method to load your specific model
+   - Adjust the `predict` method to handle your model's input/output format
+   - Modify the `preprocess_image` method if your model requires different preprocessing
+
+2. Update the classification classes if needed:
+   - Replace the example ImageNet classes with your specific classes
+
+### Database Schema
+
+The application creates the following table automatically:
+
+```sql
+CREATE TABLE image_classifications (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    image_path VARCHAR(255),
+    predicted_class VARCHAR(100),
+    confidence VARCHAR(10),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## 🛠️ Technologies Used
+
+- **Frontend**: Streamlit
+- **Backend**: FastAPI
+- **Database**: MySQL
+- **ML Framework**: PyTorch, TorchVision
+- **Package Management**: UV, pip
+- **Image Processing**: Pillow
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to submit a pull request or open an issue to improve this template.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
