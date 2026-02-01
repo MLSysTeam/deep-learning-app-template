@@ -191,6 +191,8 @@ Update your environment variables:
    ```bash
    uv uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
+   After the backend is up and running, you can access the interactive API docs at `http://localhost:8000/docs`.
+
 
 2. Start the frontend (in terminal 2):
    ```bash
