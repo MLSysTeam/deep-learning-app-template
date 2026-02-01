@@ -23,7 +23,7 @@ A complete deep learning application template featuring a Streamlit frontend, Fa
   - [🔧 Customization](#-customization)
     - [Adding Your Own Model](#adding-your-own-model)
     - [Database Schema](#database-schema)
-  - [🛠️ Technologies Used](#️-technologies-used)
+  - [🛠️ Tech Stack](#️-tech-stack)
   - [📚 Useful Resources](#-useful-resources)
   - [🤝 Contributing](#-contributing)
   - [📄 License](#-license)
@@ -260,7 +260,7 @@ CREATE TABLE image_classifications (
 );
 ```
 
-## 🛠️ Technologies Used
+## 🛠️ Tech Stack
 
 - **Frontend**: Streamlit
 - **Backend**: FastAPI
