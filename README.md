@@ -272,7 +272,9 @@ CREATE TABLE image_classifications (
 ## 📚 Useful Resources
 
 - [git - the simple guide](https://rogerdudler.github.io/git-guide/)
-- [FastAPI with SQL Database](https://fastapi.tiangolo.com/tutorial/sql-databases/)
+  - use a different branch to work on a new feature (**recommended!**)
+- [FastAPI with SQL Database](https://fastapi.tiangolo.com/tutorial/sql-databases/) 
+  - learn to use different SQL databases with FastAPI
 
 ## 🤝 Contributing
 
