@@ -1,10 +1,21 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, text
+# database.py
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, text, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import os
 from dotenv import load_dotenv
 import pymysql
+
+# Import rich for better logging
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.traceback import install
+import logging
+
+console = Console()
+install()
+logging.basicConfig(level=logging.INFO, handlers=[RichHandler()])
 
 load_dotenv()
 
@@ -32,21 +43,21 @@ def create_database_if_not_exists():
                 conn.execute(text(f"USE {DB_NAME}"))
             except Exception:
                 # Database doesn't exist, create it
-                print(f"Database '{DB_NAME}' does not exist. Creating it now...")
+                console.print(f"[yellow]Database '{DB_NAME}' does not exist. Creating it now...[/yellow]")
                 conn.execute(text(f"CREATE DATABASE {DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
                 conn.commit()
-                print(f"Database '{DB_NAME}' created successfully!")
+                console.print(f"[green]Database '{DB_NAME}' created successfully![/green]")
     except Exception as e:
-        print(f"Warning: Could not connect to MySQL server: {e}")
-        print("Please ensure MySQL server is running and credentials are correct.")
-        print("Using SQLite as fallback for demonstration purposes.")
+        console.print(f"[red]Warning: Could not connect to MySQL server: {e}[/red]")
+        console.print("[yellow]Please ensure MySQL server is running and credentials are correct.[/yellow]")
+        console.print("[yellow]Using SQLite as fallback for demonstration purposes.[/yellow]")
         # Fallback to SQLite for demo purposes if MySQL is not available
         return create_fallback_engine()
     return None
 
 def create_fallback_engine():
     """Create a fallback SQLite engine for demonstration"""
-    print("Using SQLite fallback database...")
+    console.print("[yellow]Using SQLite fallback database...[/yellow]")
     fallback_engine = create_engine("sqlite:///./image_classifications.db")
     # Create all tables for the fallback engine
     Base.metadata.create_all(bind=fallback_engine)
@@ -66,11 +77,12 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-class ImageClassification(Base):
-    __tablename__ = "image_classifications"
+class ImageSegmentation(Base):
+    __tablename__ = "image_segmentations"
 
     id = Column(Integer, primary_key=True, index=True)
     image_path = Column(String(255), index=True)
-    predicted_class = Column(String(100))
-    confidence = Column(String(10))
+    segmented_classes = Column(Text)  # Store multiple classes as JSON
+    confidence_scores = Column(Text)  # Store multiple confidence scores as JSON
+    mask_count = Column(Integer)  # Number of detected masks
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -1,6 +1,8 @@
 # Deep Learning Application Template
 
-A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image segmentation tasks. This example uses **[Grounded-SAM model](https://github.com/IDEA-Research/Grounded-Segment-Anything)** for image segmentation but can be easily adapted to other models.
+A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image segmentation tasks. This example uses **[Grounded-SAM model](https://github.com/IDEA-Research/Grounded-Segment-Anything)** for image segmentation but can be easily adapted to other models. 
+
+> In our example, we use **CPU** to run the model. If you have a GPU, you can modify the `model_handler.py` to use GPU acceleration. In specific, change the `device: str = "cpu"` to `device: str = "cuda"`.
 
 ## 📚 Table of Contents
 - [Deep Learning Application Template](#deep-learning-application-template)
@@ -59,8 +61,9 @@ This application follows a modern, scalable architecture:
                                       │      Database           │
                                       │                         │
                                       │ • Image Path            │
-                                      │ • Predicted Class       │
+                                      │ • Segmented Class       │
                                       │ • Confidence Score      │
+                                      │ • Mask Count        │
                                       │ • Detection Time        │
                                       │                         │
                                       └─────────────────────────┘
@@ -72,7 +75,7 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 ```
 
 ### Frontend Layer
-- **Streamlit**: Provides an interactive UI for uploading images and viewing classification results
+- **Streamlit**: Provides an interactive UI for uploading images and viewing segmentation results
 - Handles image display and prediction visualization
 - Communicates with the backend via REST APIs
 
@@ -97,7 +100,7 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.9+
 - MySQL Server
 - [UV](https://github.com/astral-sh/uv) package manager
 
@@ -116,6 +119,35 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
    after installation, you will see a `.venv` folder created in the project root.
 
 3. Set up the MySQL database (skip). In our example, we'll use **sqlite** for simplicity that doesn't require any setup.
+
+4. Install Grounded-Segment-Anything dependencies (for full segmentation functionality):
+   ```bash
+   # First navigate to the Grounded-Segment-Anything directory
+   cd app/3rd_party/Grounded-Segment-Anything
+   
+   # Install GroundingDINO dependencies
+   uv pip install -e GroundingDINO
+   
+   # Install Segment Anything dependencies
+   uv pip install -e segment_anything
+   
+   # Go back to the project root
+   cd ../../..
+   ```
+
+5. Download the required model weights:
+   ```bash
+   
+   # Download the GroundingDINO SwinT-OVC model (~694MB)
+   cd app/3rd_party/Grounded-Segment-Anything
+   wget https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth
+   
+   # Download the SAM ViT-H model (~2.5GB)
+   cd app/3rd_party/Grounded-Segment-Anything
+   wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
+   ```
+
+   _More details about the model weights and their usage can be found in the [Grounded-Segment-Anything documentation](https://github.com/IDEA-Research/Grounded-Segment-Anything?tab=readme-ov-file#running_man-grounded-sam-detect-and-segment-everything-with-text-prompt)._
 
 ### Setting up the MySQL Database (Optional)
 
@@ -138,7 +170,7 @@ If you want to use MySQL in a production setting:
 1. **Install MySQL Server** (one-time setup)
    - On Ubuntu/Debian: `sudo apt-get install mysql-server`
    - On CentOS/RHEL: `sudo yum install mysql-server`
-   - On macOS: `brew install mysql`
+   - On macOS: `brew services start mysql`
    - Or download from the official MySQL website
 
 2. **Start the MySQL Service**
@@ -177,8 +209,6 @@ Update your environment variables:
 
 > **Note**: If the application cannot connect to MySQL (due to wrong credentials, MySQL not running, etc.), it will automatically fall back to using a local SQLite database (`image_classifications.db`) for development and testing purposes.
 
-
-
 ### Running the Application
 
 
@@ -188,7 +218,7 @@ Update your environment variables:
    ```
    Or run directly:
    ```bash
-   uv uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   uv uvicorn app.main:app --host 0.0.0.0 --port 8000
    ```
    After the backend is up and running, you can access the interactive API docs at `http://localhost:8000/docs`.
 
@@ -206,9 +236,10 @@ Update your environment variables:
 
 1. Access the Streamlit frontend at `http://localhost:8501`
 2. Upload an image file (JPG, PNG, etc.)
-3. Click "Classify Image" to send the image to the backend
-4. View the classification result on the frontend
-5. Results are stored in the MySQL database
+3. Enter a text prompt describing what you want to segment
+4. Click "Segment Image" to send the image to the backend
+5. View the segmentation result on the frontend
+6. Results are stored in the database
 
 ## 📁 Project Structure
 
@@ -219,7 +250,9 @@ Update your environment variables:
 │   ├── main.py          # FastAPI backend application
 │   ├── frontend.py      # Streamlit frontend application
 │   ├── database.py      # Database models and connection
-│   └── model_handler.py # ML model handling logic
+│   ├── model_handler.py # ML model handling logic
+│   └── 3rd_party/      # Third-party model code
+│       ├── Grounded-Segment-Anything/  # Grounded-SAM model code
 ├── uploads/             # Directory for storing uploaded images
 ├── pyproject.toml       # Project dependencies and metadata
 ├── requirements.txt     # Dependencies list
