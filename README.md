@@ -63,7 +63,7 @@ This application follows a modern, scalable architecture:
                                       │ • Image Path            │
                                       │ • Segmented Class       │
                                       │ • Confidence Score      │
-                                      │ • Mask Count        │
+                                      │ • Mask Count            │
                                       │ • Detection Time        │
                                       │                         │
                                       └─────────────────────────┘
