@@ -74,3 +74,41 @@ class ImageClassification(Base):
     predicted_class = Column(String(100))
     confidence = Column(String(10))
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DatabaseHandler:
+    def __init__(self):
+        # Create tables if they don't exist
+        Base.metadata.create_all(bind=engine)
+    
+    def save_classification(self, image_path, predicted_class, confidence):
+        """Save classification result to database"""
+        db = SessionLocal()
+        try:
+            db_classification = ImageClassification(
+                image_path=image_path,
+                predicted_class=predicted_class,
+                confidence=str(confidence)
+            )
+            db.add(db_classification)
+            db.commit()
+            db.refresh(db_classification)
+            return db_classification
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            db.close()
+    
+    def get_recent_classifications(self, skip: int = 0, limit: int = 20):
+        """Get recent classification results from database"""
+        db = SessionLocal()
+        try:
+            classifications = db.query(ImageClassification)\
+                .order_by(ImageClassification.created_at.desc())\
+                .offset(skip)\
+                .limit(limit)\
+                .all()
+            return classifications
+        finally:
+            db.close()
