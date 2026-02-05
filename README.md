@@ -84,14 +84,14 @@ The application is structured into four main modules:
 
 Run the application with either of these methods:
 
-1. Using the run script:
+1. Using the run script (recommended!):
    ```bash
    ./run_app.sh
    ```
 
 2. Directly with Python:
    ```bash
-   python run_app.py
+   uv run python app/main.py
    ```
 
 The application will start with a window containing:
