@@ -109,7 +109,8 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 1. Clone this repository:
    ```bash
    git clone --branch grounded_sam https://github.com/MLSysTeam/deep-learning-app-template.git
-   cd deep-learning-app-template
+   cd deep-learning-app-template/app/3rd_party && git clone https://github.com/IDEA-Research/Grounded-Segment-Anything.git 
+   cd ../.. # go back to the project root
    ```
 
 2. Install dependencies using UV:
@@ -122,6 +123,7 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 
 4. Install Grounded-Segment-Anything dependencies (for full segmentation functionality):
    ```bash
+   source .venv/bin/activate # activate the virtual environment
    # First navigate to the Grounded-Segment-Anything directory
    cd app/3rd_party/Grounded-Segment-Anything
    
