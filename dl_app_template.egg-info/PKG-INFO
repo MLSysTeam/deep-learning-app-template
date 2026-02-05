@@ -23,18 +23,23 @@ Requires-Dist: black>=21.0; extra == "dev"
 Requires-Dist: flake8>=3.9; extra == "dev"
 Requires-Dist: mypy>=0.910; extra == "dev"
 
-# Deep Learning Application Template
+# Deep Learning Desktop Application Template
 
-A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image segmentation tasks. This example uses **[Grounded-SAM model](https://github.com/IDEA-Research/Grounded-Segment-Anything)** for image segmentation but can be easily adapted to other models. 
+A complete deep learning desktop application template built with PyTorch and PySide6, integrating MySQL/SQLite database for image segmentation tasks. This example uses **[Grounded-SAM model](https://github.com/IDEA-Research/Grounded-Segment-Anything)** for image segmentation but can be easily adapted to other models. 
 
-> In our example, we use **CPU** to run the model. If you have a GPU, you can modify the `model_handler.py` to use GPU acceleration. In specific, change the `device: str = "cpu"` to `device: str = "cuda"`.
+The application is structured as a single desktop client with different functionalities separated into distinct modules:
+- **Model Inference** handled in [model.py](./app/model.py)
+- **User Interface** managed in [ui.py](./app/ui.py) 
+- **Database Operations** implemented in [database.py](./app/database.py)
+
+> In our example, we use **CPU** to run the model. If you have a GPU, you can modify the `model.py` to use GPU acceleration. In specific, change the `device: str = "cpu"` to `device: str = "cuda"`.
 
 ## 📚 Table of Contents
-- [Deep Learning Application Template](#deep-learning-application-template)
+- [Deep Learning Desktop Application Template](#deep-learning-desktop-application-template)
   - [📚 Table of Contents](#-table-of-contents)
   - [🏗️ System Architecture](#️-system-architecture)
-    - [Frontend Layer](#frontend-layer)
-    - [Backend Layer](#backend-layer)
+    - [Desktop UI Layer](#desktop-ui-layer)
+    - [Application Logic Layer](#application-logic-layer)
     - [Machine Learning Layer](#machine-learning-layer)
     - [Data Layer](#data-layer)
   - [🚀 Getting Started](#-getting-started)
@@ -57,84 +62,66 @@ A complete deep learning application template featuring a Streamlit frontend, Fa
 
 ## 🏗️ System Architecture
 
-This application follows a modern, scalable architecture:
+This application follows a modular desktop application architecture with clear separation of concerns:
 
 ```
-┌─────────────────┐    HTTP Requests     ┌──────────────────┐
-│                 │ ◄─────────────────── │                  │
-│   Streamlit     │                      │   FastAPI        │
-│   Frontend      │ ────────────────────►│   Backend        │
-│                 │                      │                  │
-│ (User Interface)│                      │ (Business Logic) │
-└─────────────────┘                      └──────────────────┘
-                                                  │
-                                                  │
-                                                  │ Image Preprocessing
-                                                  ▼
-                                      ┌─────────────────────────┐
-                                      │                         │
-                                      │    PyTorch Model        │
-                                      │   (Inference Logic)     │
-                                      │                         │
-                                      └─────────────────────────┘
-                                                  │
-                                                  │ Prediction Results
-                                                  ▼
-                                      ┌─────────────────────────┐
-                                      │                         │
-                                      │        MySQL            │
-                                      │      Database           │
-                                      │                         │
-                                      │ • Image Path            │
-                                      │ • Segmented Class       │
-                                      │ • Confidence Score      │
-                                      │ • Mask Count            │
-                                      │ • Detection Time        │
-                                      │                         │
-                                      └─────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Desktop Application                      │
+│                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐ │
+│  │   UI Module     │  │  Model Module   │  │  Database   │ │
+│  │   (ui.py)       │  │   (model.py)    │  │  Module     │ │
+│  │                 │  │                 │  │ (database.py)│ │
+│  │ PySide6 Widgets │  │ PyTorch Models  │  │ SQLAlchemy  │ │
+│  │  & Events       │  │  & Inference    │  │  ORM        │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────┘ │
+└─────────────────────────────────────────────────────────────┘
     
 Flow:
-User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image → 
-→ PyTorch model performs inference → Results stored in MySQL → 
-→ Response to Streamlit → Display to user
+User interacts with UI → UI triggers model inference → 
+→ PyTorch model performs segmentation → Results stored in DB → 
+→ UI updates with results
 ```
 
-### Frontend Layer
-- **Streamlit**: Provides an interactive UI for uploading images and viewing segmentation results
+### Desktop UI Layer
+- **PySide6**: Provides a desktop UI for uploading images and viewing segmentation results
 - Handles image display and prediction visualization
-- Communicates with the backend via REST APIs
+- Manages user interactions and events
 
-### Backend Layer
-- **FastAPI**: High-performance web framework for creating REST APIs
-- Handles image preprocessing and model inference
-- Manages communication with the database
-- Implements async request handling
+### Application Logic Layer
+- **Main Controller** ([main.py](./app/main.py)): Orchestrates communication between UI, model, and database layers
+- Handles application startup and lifecycle
+- Coordinates data flow between components
 
 ### Machine Learning Layer
 - **PyTorch/TorchVision**: A popular deep learning framework
 - Performs image preprocessing and model inference
+- Integrates Grounded-SAM for image segmentation capabilities
+- Includes GroundingDINO for object detection based on text prompts
 
 ### Data Layer
-- **MySQL**: Stores classification results including:
+- **MySQL/SQLite**: Stores segmentation results including:
   - Image file paths
-  - Predicted class labels
-  - Confidence scores
-  - Timestamps of predictions
+  - Text prompts used for segmentation
+  - Number of objects detected
+  - Average confidence score
+  - Timestamps of detections
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 - Python 3.9+
-- MySQL Server
+- MySQL Server (optional, fallback to SQLite available)
 - [UV](https://github.com/astral-sh/uv) package manager
 
 ### Installation
 
 1. Clone this repository:
    ```bash
-   git clone --branch grounded_sam https://github.com/MLSysTeam/deep-learning-app-template.git
-   cd deep-learning-app-template
+   git clone --branch groundedsam_desktop https://github.com/MLSysTeam/deep-learning-app-template.git
+   cd app/3rd_party && git clone https://github.com/IDEA-Research/Grounded-Segment-Anything.git
+   cd ../.. # return to the project root
    ```
 
 2. Install dependencies using UV:
@@ -143,9 +130,7 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
    ```
    after installation, you will see a `.venv` folder created in the project root.
 
-3. Set up the MySQL database (skip). In our example, we'll use **sqlite** for simplicity that doesn't require any setup.
-
-4. Install Grounded-Segment-Anything dependencies (for full segmentation functionality):
+3. Install Grounded-Segment-Anything dependencies (for full segmentation functionality):
    ```bash
    # First navigate to the Grounded-Segment-Anything directory
    cd app/3rd_party/Grounded-Segment-Anything
@@ -160,9 +145,8 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
    cd ../../..
    ```
 
-5. Download the required model weights:
+4. Download the required model weights:
    ```bash
-   
    # Download the GroundingDINO SwinT-OVC model (~694MB)
    cd app/3rd_party/Grounded-Segment-Anything
    wget https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth
@@ -229,42 +213,32 @@ Update your environment variables:
    DB_PASSWORD=your_mysql_password
    DB_HOST=localhost
    DB_PORT=3306
-   DB_NAME=image_classification
+   DB_NAME=image_segmentation
    ```
 
-> **Note**: If the application cannot connect to MySQL (due to wrong credentials, MySQL not running, etc.), it will automatically fall back to using a local SQLite database (`image_classifications.db`) for development and testing purposes.
+> **Note**: If the application cannot connect to MySQL (due to wrong credentials, MySQL not running, etc.), it will automatically fall back to using a local SQLite database (`image_segmentations.db`) for development and testing purposes.
 
 ### Running the Application
 
-
-1. Start the backend (in terminal 1):
+Run the application using the provided script:
    ```bash
-   ./start_backend.sh
+   ./run_app.sh
    ```
-   Or run directly:
-   ```bash
-   uv uvicorn app.main:app --host 0.0.0.0 --port 8000
-   ```
-   After the backend is up and running, you can access the interactive API docs at `http://localhost:8000/docs`.
 
-
-2. Start the frontend (in terminal 2):
+Alternatively, run directly:
    ```bash
-   ./start_frontend.sh
-   ```
-   Or run directly:
-   ```bash
-   uv streamlit run app/frontend.py
+   uv run python app/main.py
    ```
 
 ### Usage
 
-1. Access the Streamlit frontend at `http://localhost:8501`
-2. Upload an image file (JPG, PNG, etc.)
-3. Enter a text prompt describing what you want to segment
-4. Click "Segment Image" to send the image to the backend
-5. View the segmentation result on the frontend
-6. Results are stored in the database
+1. Launch the application using the command above
+2. The PySide6 desktop application will start
+3. Upload an image file (JPG, PNG, etc.) using the GUI
+4. Enter a text prompt describing what you want to segment
+5. Click "Segment Image" to perform segmentation
+6. View the segmentation result with masks overlaid on the original image
+7. Results are stored in the database and displayed in the history panel
 
 ## 📁 Project Structure
 
@@ -272,18 +246,17 @@ Update your environment variables:
 .
 ├── app/
 │   ├── __init__.py
-│   ├── main.py          # FastAPI backend application
-│   ├── frontend.py      # Streamlit frontend application
+│   ├── main.py          # PySide6 application entry point and controller
+│   ├── model.py         # ML model handling logic and segmentation
 │   ├── database.py      # Database models and connection
-│   ├── model_handler.py # ML model handling logic
-│   └── 3rd_party/      # Third-party model code
-│       ├── Grounded-Segment-Anything/  # Grounded-SAM model code
+│   └── ui.py            # PySide6 GUI implementation
+│   └── 3rd_party/       # Third-party model code
+│       └── Grounded-Segment-Anything/  # Grounded-SAM model code
 ├── uploads/             # Directory for storing uploaded images
 ├── pyproject.toml       # Project dependencies and metadata
 ├── requirements.txt     # Dependencies list
 ├── .env.example         # Environment variables example
-├── start_backend.sh     # Script to start backend service
-├── start_frontend.sh    # Script to start frontend service
+├── run_app.sh           # Script to start the desktop application
 ├── README.md            # This file
 └── README_zh.md         # Chinese version of README
 ```
@@ -294,45 +267,46 @@ Update your environment variables:
 
 To integrate your own PyTorch model:
 
-1. Modify [app/model_handler.py](app/model_handler.py) to load your model:
+1. Modify [app/model.py](app/model.py) to load your model:
    - Update the `__init__` method to load your specific model
-   - Adjust the `predict` method to handle your model's input/output format
+   - Adjust the `segment` method to handle your model's input/output format
    - Modify the `preprocess_image` method if your model requires different preprocessing
 
-2. Update the classification classes if needed:
-   - Replace the example ImageNet classes with your specific classes
+2. Update the segmentation classes if needed:
+   - Replace the example segmentation logic with your specific model's requirements
 
 ### Database Schema
 
 The application creates the following table automatically:
 
 ```sql
-CREATE TABLE image_classifications (
+CREATE TABLE image_segmentations (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     image_path VARCHAR(255),
-    predicted_class VARCHAR(100),
-    confidence VARCHAR(10),
+    text_prompt VARCHAR(255),  -- New field for the text prompt used
+    num_objects INTEGER,       -- Number of objects detected
+    confidence_avg FLOAT,      -- Average confidence score
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Streamlit
-- **Backend**: FastAPI
+- **Frontend**: PySide6
+- **Backend**: Python
 - **Database**: MySQL/SQLite
 - **ML Framework**: PyTorch, TorchVision
 - **Package Management**: UV, pip
-- **Image Processing**: Pillow
+- **Image Processing**: OpenCV, Pillow, Matplotlib
 
 ## 📚 Useful Resources
 
 - [git - the simple guide](https://rogerdudler.github.io/git-guide/)
   - use a different branch to work on a new feature (**recommended!**)
-- [FastAPI with SQL Database](https://fastapi.tiangolo.com/tutorial/sql-databases/) 
-  - learn to use different SQL databases with FastAPI
-- [Grounded-Segment-Anything-API](https://github.com/LeanFly/Grounded-Segment-Anything-API)
-  - learn to build a FastAPI backend for Grounded-SAM
+- [PySide6 Documentation](https://doc.qt.io/qtforpython/)
+  - learn how to build desktop applications with Qt and Python
+- [Grounded-Segment-Anything](https://github.com/IDEA-Research/Grounded-Segment-Anything)
+  - learn more about the segmentation model used in this project
 
 ## 🤝 Contributing
 

@@ -43,13 +43,13 @@ This application follows a modular desktop application architecture with clear s
 ┌─────────────────────────────────────────────────────────────┐
 │                    Desktop Application                      │
 │                                                             │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐ │
-│  │   UI Module     │  │  Model Module   │  │  Database   │ │
-│  │   (ui.py)       │  │   (model.py)    │  │  Module     │ │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
+│  │   UI Module     │  │  Model Module   │  │  Database    │ │
+│  │   (ui.py)       │  │   (model.py)    │  │  Module      │ │
 │  │                 │  │                 │  │ (database.py)│ │
-│  │ PySide6 Widgets │  │ PyTorch Models  │  │ SQLAlchemy  │ │
-│  │  & Events       │  │  & Inference    │  │  ORM        │ │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘ │
+│  │ PySide6 Widgets │  │ PyTorch Models  │  │ SQLAlchemy   │ │
+│  │  & Events       │  │  & Inference    │  │  ORM         │ │
+│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
     
 Flow:
@@ -94,8 +94,9 @@ User interacts with UI → UI triggers model inference →
 
 1. Clone this repository:
    ```bash
-   git clone --branch groundedsam_desktop --recursive https://github.com/MLSysTeam/deep-learning-app-template.git
-   cd deep-learning-app-template
+   git clone --branch groundedsam_desktop https://github.com/MLSysTeam/deep-learning-app-template.git
+   cd app/3rd_party && git clone https://github.com/IDEA-Research/Grounded-Segment-Anything.git
+   cd ../.. # return to the project root
    ```
 
 2. Install dependencies using UV:
@@ -106,6 +107,7 @@ User interacts with UI → UI triggers model inference →
 
 3. Install Grounded-Segment-Anything dependencies (for full segmentation functionality):
    ```bash
+   source .venv/bin/activate # activate the virtual environment
    # First navigate to the Grounded-Segment-Anything directory
    cd app/3rd_party/Grounded-Segment-Anything
    
