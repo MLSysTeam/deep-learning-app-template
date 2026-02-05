@@ -71,13 +71,13 @@ The application is structured into four main modules:
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
-   cd <repository-name>
+   git clone --branch desktop_ui https://github.com/MLSysTeam/deep-learning-app-template.git
+   cd deep-learning-app-template
    ```
 
 2. Install dependencies:
    ```bash
-   uv sync
+   uv sync # equivalent to uv pip install -r requirements.txt
    ```
 
 ## Usage
