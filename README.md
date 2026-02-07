@@ -112,7 +112,9 @@ User interacts with UI → UI triggers model inference →
    cd app/3rd_party/Grounded-Segment-Anything
    
    # Install GroundingDINO dependencies
-   uv pip install -e GroundingDINO
+   uv pip install -e GroundingDINO 
+   # If you meet CUDA mismatch, you can run the following command 
+   # FORCE_CUDA="0" uv pip install -e GroundingDINO
    
    # Install Segment Anything dependencies
    uv pip install -e segment_anything
@@ -198,7 +200,9 @@ Update your environment variables:
 
 Run the application using the provided script:
    ```bash
-   ./run_app.sh
+   ./run_app.sh 
+   # If inference does not work, you can run the following command
+   # CUDA_VISIBLE_DEVICES="" bash run_app.sh
    ```
 
 Alternatively, run directly:

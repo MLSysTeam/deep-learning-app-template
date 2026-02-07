@@ -68,13 +68,13 @@ This application follows a modular desktop application architecture with clear s
 ┌─────────────────────────────────────────────────────────────┐
 │                    Desktop Application                      │
 │                                                             │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐ │
-│  │   UI Module     │  │  Model Module   │  │  Database   │ │
-│  │   (ui.py)       │  │   (model.py)    │  │  Module     │ │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
+│  │   UI Module     │  │  Model Module   │  │  Database    │ │
+│  │   (ui.py)       │  │   (model.py)    │  │  Module      │ │
 │  │                 │  │                 │  │ (database.py)│ │
-│  │ PySide6 Widgets │  │ PyTorch Models  │  │ SQLAlchemy  │ │
-│  │  & Events       │  │  & Inference    │  │  ORM        │ │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘ │
+│  │ PySide6 Widgets │  │ PyTorch Models  │  │ SQLAlchemy   │ │
+│  │  & Events       │  │  & Inference    │  │  ORM         │ │
+│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
     
 Flow:
@@ -132,6 +132,7 @@ User interacts with UI → UI triggers model inference →
 
 3. Install Grounded-Segment-Anything dependencies (for full segmentation functionality):
    ```bash
+   source .venv/bin/activate # activate the virtual environment
    # First navigate to the Grounded-Segment-Anything directory
    cd app/3rd_party/Grounded-Segment-Anything
    
