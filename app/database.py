@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -73,4 +73,19 @@ class ImageClassification(Base):
     image_path = Column(String(255), index=True)
     predicted_class = Column(String(100))
     confidence = Column(String(10))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    # Add fields for video frame analysis
+    video_id = Column(Integer, index=True)  # To group frames from the same video
+    frame_number = Column(Integer)  # Frame number in the video
+    frame_timestamp = Column(Float)  # Timestamp of the frame in the video (in seconds)
+
+
+class VideoClassification(Base):
+    __tablename__ = "video_classifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    video_path = Column(String(255), index=True)
+    summary_results = Column(String(1000))  # JSON string of summary results
+    total_frames_processed = Column(Integer)
+    duration_seconds = Column(Float)
     created_at = Column(DateTime, default=datetime.utcnow)

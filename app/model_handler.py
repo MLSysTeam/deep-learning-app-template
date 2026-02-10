@@ -5,6 +5,8 @@ import torch.nn.functional as F
 import random
 from typing import Tuple
 import os
+import cv2
+import numpy as np
 
 # Predefined classes for classification (using standard ImageNet classes as example)
 CLASSES = [
@@ -112,5 +114,76 @@ class ImageClassifier:
         predicted_idx = random.randint(0, len(self.classes) - 1)
         predicted_class = self.classes[predicted_idx]
         confidence = round(random.uniform(0.5, 1.0), 3)
-        
+
         return predicted_class, confidence
+
+    def analyze_video(self, video_path: str, frame_interval: float = 1.0):
+        """
+        Analyze a video file by extracting frames at specified intervals and classifying them
+
+        Args:
+            video_path: Path to the video file
+            frame_interval: Time interval (in seconds) between frames to analyze
+
+        Returns:
+            List of classification results for each analyzed frame
+        """
+        results = []
+
+        # Open the video file
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise Exception(f"Could not open video file: {video_path}")
+
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = total_frames / fps
+
+        frame_number = 0
+        analyzed_frame_count = 0
+
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
+                # Calculate current timestamp in seconds
+                current_timestamp = frame_number / fps
+
+                # Check if this frame should be analyzed based on the interval
+                if current_timestamp >= analyzed_frame_count * frame_interval:
+                    # Convert frame from BGR to RGB (OpenCV uses BGR)
+                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                    # Convert to PIL Image
+                    pil_image = Image.fromarray(rgb_frame)
+
+                    # Save frame temporarily to analyze
+                    temp_frame_path = f"temp_frame_{current_timestamp:.2f}.jpg"
+                    pil_image.save(temp_frame_path)
+
+                    try:
+                        # Perform prediction on the frame
+                        predicted_class, confidence = self.predict(temp_frame_path)
+
+                        # Add result to list
+                        results.append({
+                            'frame_number': frame_number,
+                            'timestamp': current_timestamp,
+                            'predicted_class': predicted_class,
+                            'confidence': confidence
+                        })
+
+                        analyzed_frame_count += 1
+                    finally:
+                        # Remove temporary file
+                        if os.path.exists(temp_frame_path):
+                            os.remove(temp_frame_path)
+
+                frame_number += 1
+
+        finally:
+            cap.release()
+
+        return results, duration

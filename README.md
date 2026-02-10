@@ -1,6 +1,6 @@
 # Deep Learning Application Template
 
-A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image classification tasks.
+A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image and video classification tasks.
 
 ## 📚 Table of Contents
 - [Deep Learning Application Template](#deep-learning-application-template)
@@ -205,10 +205,13 @@ Update your environment variables:
 ### Usage
 
 1. Access the Streamlit frontend at `http://localhost:8501`
-2. Upload an image file (JPG, PNG, etc.)
-3. Click "Classify Image" to send the image to the backend
-4. View the classification result on the frontend
-5. Results are stored in the MySQL database
+2. Choose between two tabs:
+   - **Image Analysis**: Upload an image file (JPG, PNG, etc.) and click "Classify Image"
+   - **Video Analysis**: Upload a video file (MP4, AVI, MOV, MKV, etc.) and select frame analysis interval, then click "Analyze Video"
+3. View the classification results on the frontend:
+   - For images: See the prediction result
+   - For videos: See both summary statistics and frame-by-frame results
+4. Results are stored in the MySQL database
 
 ## 📁 Project Structure
 
@@ -246,7 +249,7 @@ To integrate your own PyTorch model:
 
 ### Database Schema
 
-The application creates the following table automatically:
+The application creates the following tables automatically:
 
 ```sql
 CREATE TABLE image_classifications (
@@ -254,6 +257,18 @@ CREATE TABLE image_classifications (
     image_path VARCHAR(255),
     predicted_class VARCHAR(100),
     confidence VARCHAR(10),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    video_id INTEGER,           -- To group frames from the same video
+    frame_number INTEGER,       -- Frame number in the video
+    frame_timestamp FLOAT       -- Timestamp of the frame in the video (in seconds)
+);
+
+CREATE TABLE video_classifications (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    video_path VARCHAR(255),
+    summary_results VARCHAR(1000),  -- JSON string of summary results
+    total_frames_processed INTEGER,
+    duration_seconds FLOAT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -266,6 +281,7 @@ CREATE TABLE image_classifications (
 - **ML Framework**: PyTorch, TorchVision
 - **Package Management**: UV, pip
 - **Image Processing**: Pillow
+- **Video Processing**: OpenCV
 
 ## 📚 Useful Resources
 
