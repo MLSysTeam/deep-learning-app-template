@@ -3,6 +3,7 @@ pyproject.toml
 app/database.py
 app/frontend.py
 app/main.py
+app/model_deployer.py
 app/model_handler.py
 dl_app_template.egg-info/PKG-INFO
 dl_app_template.egg-info/SOURCES.txt

@@ -4,17 +4,20 @@ from sqlalchemy.orm import Session
 from typing import List
 import shutil
 import os
+import time
 from datetime import datetime
 import json
 
 from .database import SessionLocal, engine, ImageClassification, VideoClassification, Base
 from .model_handler import ImageClassifier
+from .model_deployer import ModelDeployer
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-# Initialize the classifier when the application starts
-print("Initializing Image Classifier...")
+# Initialize the classifier when the application starts with optimization
+print("Initializing Optimized Image Classifier...")
+# We'll start with the default (non-optimized) model but provide optimization endpoint
 classifier = ImageClassifier()
 print("Image Classifier initialized successfully!")
 
@@ -208,6 +211,93 @@ def get_video_classification(video_id: int, db: Session = Depends(get_db)):
         "video_classification": video_classification,
         "frame_results": frame_results,
         "detailed_results": detailed_results
+    }
+
+
+# Model deployment and optimization endpoints
+@app.post("/deploy_model/")
+def deploy_model(model_name: str = "resnet18", optimization_type: str = "jit"):
+    """Deploy and optimize a model"""
+    try:
+        deployer = ModelDeployer(model_name=model_name)
+        deployer.load_model()
+
+        if optimization_type == "jit":
+            optimized_model = deployer.optimize_with_jit()
+        elif optimization_type == "scripted":
+            optimized_model = deployer.optimize_with_torchscript()
+        elif optimization_type == "onnx":
+            optimized_model = deployer.optimize_with_onnx()
+        elif optimization_type == "auto":
+            # Automatically select best optimization based on system
+            optimized_model = deployer.auto_optimize()
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown optimization type: {optimization_type}")
+
+        return {
+            "message": f"Model {model_name} deployed with {optimization_type} optimization",
+            "model_name": model_name,
+            "optimization_type": optimization_type,
+            "device": deployer.device,
+            "gpu_available": deployer.gpu_available
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deploying model: {str(e)}")
+
+
+@app.get("/optimization_strategy/")
+def get_optimization_strategy():
+    """Get the best optimization strategy for the current system"""
+    try:
+        deployer = ModelDeployer()
+        strategy = deployer.get_best_optimization_strategy()
+        return strategy
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting optimization strategy: {str(e)}")
+
+
+@app.post("/benchmark_model/")
+async def benchmark_model_endpoint(file: UploadFile = File(...), model_name: str = "resnet18", num_runs: int = 10):
+    """Benchmark different model optimizations on an image"""
+    try:
+        # Save uploaded file temporarily
+        temp_image_path = f"temp_benchmark_{int(time.time())}.jpg"
+        with open(temp_image_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Create deployer and run benchmark
+        deployer = ModelDeployer(model_name=model_name)
+        deployer.load_model()
+
+        # Apply lossless optimizations
+        deployer.optimize_with_jit()
+        deployer.optimize_with_torchscript()
+        deployer.optimize_with_onnx()
+
+        # Run benchmarks
+        results = deployer.generate_performance_report(temp_image_path, num_runs)
+
+        # Clean up temp file
+        if os.path.exists(temp_image_path):
+            os.remove(temp_image_path)
+
+        return results
+
+    except Exception as e:
+        # Clean up in case of error
+        if 'temp_image_path' in locals() and os.path.exists(temp_image_path):
+            os.remove(temp_image_path)
+        raise HTTPException(status_code=500, detail=f"Error benchmarking model: {str(e)}")
+
+
+@app.get("/model_info/")
+def get_model_info():
+    """Get information about the current model"""
+    return {
+        "model_name": "resnet18",  # This should be configurable
+        "optimized": classifier.optimized if hasattr(classifier, 'optimized') else False,
+        "optimization_type": "jit" if hasattr(classifier, 'optimized') and classifier.optimized else "none"
     }
 
 
