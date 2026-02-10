@@ -107,7 +107,7 @@ User uploads image → Streamlit sends to FastAPI → FastAPI preprocesses image
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/MLSysTeam/deep-learning-app-template
+   git clone --branch fast_model https://github.com/MLSysTeam/deep-learning-app-template
    cd deep-learning-app-template
    ```
 
