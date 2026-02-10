@@ -2,7 +2,7 @@
 
 A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image and video classification tasks.
 
-> A standard deployment pipeline has been implemented in [model_deploy.py](./app/model_deployer.py) to automate the deployment of models to the backend. You can check performance benchmarks at [model_optimization_report.md](./docs/model_optimization_report.md).
+> A standard deployment pipeline (`PyTorch -> PyTorch JIT -> ONNX`) has been implemented in [model_deploy.py](./app/model_deployer.py) to automate the deployment of models to the backend. You can check performance benchmarks at [model_optimization_report.md](./docs/model_optimization_report.md). If you want to achieve the best performance on NVIDIA GPUs, you may need to use NVIDIA TensorRT as the inference engine (`PyTorch -> ONNX -> TensorRT`).  
 
 ## 📚 Table of Contents
 - [Deep Learning Application Template](#deep-learning-application-template)
