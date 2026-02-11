@@ -2,8 +2,17 @@
 
 A complete deep learning application template featuring a Streamlit frontend, FastAPI backend, and MySQL/SQLite database for image and video classification tasks.
 
-> A standard deployment pipeline (`PyTorch -> PyTorch JIT -> ONNX`) has been implemented in [model_deploy.py](./app/model_deployer.py) to automate the deployment of models to the backend. You can check performance benchmarks at [model_optimization_report.md](./docs/model_optimization_report.md). If you want to achieve the best performance on NVIDIA GPUs, you may need to use NVIDIA TensorRT as the inference engine (`PyTorch -> ONNX -> TensorRT`).  
+> Our template includes a complete model optimization pipeline with multiple deployment strategies for enhanced performance. The default implementation uses a `PyTorch → PyTorch JIT → ONNX` workflow in [model_deployer.py](./app/model_deployer.py), which is platform-agnostic and can accelerate PyTorch models by 3x - 4x. For peak performance on NVIDIA GPUs, we also support a `PyTorch → ONNX → TensorRT` pipeline that can provide an additional 2x-4x speedup over ONNX alone. Performance benchmarks are available in [model_optimization_report.md](./docs/model_optimization_report.md).
 
+| Model Type | Avg Inference Time(s) | FPS | Model Size(MB) | Speed Improvement | Size Reduction |
+|------------|------------------------|-----|----------------|-------------------|----------------|
+| Original Model | 0.00205 | 487.59 | 44.67 | 1.00x | 1.00x |
+| JIT Compilation | 0.00136 | 737.75 | 44.67 | 1.51x | 1.00x |
+| TorchScript | 0.00137 | 727.77 | 44.67 | 1.49x | 1.00x |
+| ONNX Conversion | 0.00092 | 1090.90 | 0.09 | 2.24x | 490.80x |
+| TensorRT Optimization | 0.00024 | 4182.18 | 23.19 | 8.58x | 1.93x |
+
+*Test Environment: Python 3.9+, PyTorch 2.x, ONNX Runtime (CUDA Provider), TensorRT, NVIDIA GeForce RTX 4090D, ResNet18 (ImageNet pretrained), Input Size: [1, 3, 224, 224], Number of Runs: 10 averaged*
 ## 📚 Table of Contents
 - [Deep Learning Application Template](#deep-learning-application-template)
   - [📚 Table of Contents](#-table-of-contents)

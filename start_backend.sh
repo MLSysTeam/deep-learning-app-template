@@ -8,4 +8,4 @@ mkdir -p uploads
 
 # Start the FastAPI backend
 echo "Starting FastAPI backend on port 8000..."
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn app.main:app --host 0.0.0.0 --port 6006 --reload

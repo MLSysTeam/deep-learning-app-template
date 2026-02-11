@@ -29,6 +29,26 @@ def get_db():
     finally:
         db.close()
 
+def _make_json_serializable(obj):
+    """Recursively convert inf values to None to make objects JSON serializable"""
+    import math
+    
+    if isinstance(obj, dict):
+        return {key: _make_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [_make_json_serializable(item) for item in obj]
+    elif isinstance(obj, float):
+        if obj == float('inf'):
+            return 999999999.0  # Use a large number instead of inf
+        elif obj == float('-inf'):
+            return -999999999.0  # Use a small number instead of -inf
+        elif math.isnan(obj):
+            return None
+        else:
+            return obj
+    else:
+        return obj
+
 # Create FastAPI app instance
 app = FastAPI(title="Image Classification API", 
               description="API for classifying images using a PyTorch model",
@@ -228,6 +248,8 @@ def deploy_model(model_name: str = "resnet18", optimization_type: str = "jit"):
             optimized_model = deployer.optimize_with_torchscript()
         elif optimization_type == "onnx":
             optimized_model = deployer.optimize_with_onnx()
+        elif optimization_type == "tensorrt":
+            optimized_model = deployer.optimize_with_tensorrt()
         elif optimization_type == "auto":
             # Automatically select best optimization based on system
             optimized_model = deployer.auto_optimize()
@@ -274,6 +296,15 @@ async def benchmark_model_endpoint(file: UploadFile = File(...), model_name: str
         deployer.optimize_with_jit()
         deployer.optimize_with_torchscript()
         deployer.optimize_with_onnx()
+        
+        # Also try TensorRT if available
+        try:
+            import tensorrt
+            import onnx
+            # Only run TensorRT optimization if dependencies are available
+            deployer.optimize_with_tensorrt()
+        except ImportError:
+            print("TensorRT dependencies not available, skipping TensorRT optimization...")
 
         # Run benchmarks
         results = deployer.generate_performance_report(temp_image_path, num_runs)
@@ -282,7 +313,9 @@ async def benchmark_model_endpoint(file: UploadFile = File(...), model_name: str
         if os.path.exists(temp_image_path):
             os.remove(temp_image_path)
 
-        return results
+        # Make sure the results are JSON serializable
+        serializable_results = _make_json_serializable(results)
+        return serializable_results
 
     except Exception as e:
         # Clean up in case of error

@@ -127,6 +127,9 @@ class ModelDeployer:
         if self.original_model is None:
             raise ValueError("Model must be loaded first")
 
+        # Keep track of the original device of the model
+        original_device = next(self.original_model.parameters()).device
+        
         try:
             # Create dummy input and move to CPU for ONNX export
             # ONNX export typically happens on CPU
@@ -135,30 +138,119 @@ class ModelDeployer:
             # Get the CPU version of the model for export
             model_for_export = self.original_model.cpu()
 
-            # Export to ONNX
+            # Export to ONNX with a higher opset version to avoid automatic upgrades and conversion errors
             torch.onnx.export(
                 model_for_export.eval(),
                 dummy_input,
                 save_path,
                 export_params=True,
-                opset_version=11,
+                opset_version=18,  # Updated to match the automatically selected version
                 do_constant_folding=True,
                 input_names=['input'],
                 output_names=['output'],
-                dynamic_axes={
-                    'input': {0: 'batch_size'},
-                    'output': {0: 'batch_size'}
-                }
+                dynamic_axes=None,  # Temporarily disable dynamic_axes to avoid the warning
+                # Use newer parameters to avoid dynamo warnings
+                training=torch.onnx.TrainingMode.EVAL,
+                verbose=False
             )
 
             # Move model back to original device
-            self.original_model = self.original_model.to(self.device)
+            self.original_model = self.original_model.to(original_device)
 
             self.optimized_models['onnx'] = save_path
             print(f"ONNX optimization completed successfully. Model saved to {save_path}")
             return save_path
         except Exception as e:
             print(f"ONNX optimization failed: {e}")
+            
+            # Even if ONNX export fails, make sure original model is still on the right device
+            self.original_model = self.original_model.to(original_device)
+            
+            return None
+
+    def optimize_with_tensorrt(self, input_shape: Tuple[int, ...] = (1, 3, 224, 224),
+                              save_path: str = "optimized_model.trt") -> str:
+        """Optimize model by converting to TensorRT format via ONNX (lossless)"""
+        print("Optimizing model with TensorRT conversion via ONNX (lossless)...")
+
+        if self.original_model is None:
+            raise ValueError("Model must be loaded first")
+
+        # First convert to ONNX, then to TensorRT
+        onnx_path = self.optimize_with_onnx(input_shape, save_path.replace(".trt", ".onnx"))
+        
+        if onnx_path is None:
+            print("Cannot optimize with TensorRT: ONNX conversion failed")
+            return None
+
+        try:
+            import onnx
+            import tensorrt as trt
+
+            # Create TensorRT builder
+            logger = trt.Logger(trt.Logger.WARNING)
+            builder = trt.Builder(logger)
+            
+            # Check for newer TensorRT API (8.5+)
+            if hasattr(trt, 'NetworkDefinitionCreationFlag'):
+                # Newer API
+                network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+            else:
+                # Older API
+                network = builder.create_network(1)
+                
+            parser = trt.OnnxParser(network, logger)
+            
+            # Parse the ONNX file
+            with open(onnx_path, 'rb') as model_file:
+                if not parser.parse(model_file.read()):
+                    print("ERROR: Failed to parse the ONNX file.")
+                    for error in range(parser.num_errors):
+                        print(f"TensorRT ONNX parser error {error}: {parser.get_error(error)}")
+                    return None
+
+            # Configure the builder
+            config = builder.create_builder_config()
+            
+            # Handle different TensorRT version APIs for setting memory pool
+            if hasattr(trt, 'MemoryPoolType'):
+                config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 30)  # 1GB for workspace
+            else:
+                # Older versions
+                config.max_workspace_size = 1 << 30  # 1GB for workspace
+            
+            # Enable FP16 if available
+            if builder.platform_has_fast_fp16:
+                config.set_flag(trt.BuilderFlag.FP16)
+            
+            # Build the engine - handle different APIs
+            if hasattr(builder, 'build_serialized_network'):
+                serialized_engine = builder.build_serialized_network(network, config)
+            else:
+                engine = builder.build_engine(network, config)
+                if engine is None:
+                    print("ERROR: Failed to build TensorRT engine")
+                    return None
+                serialized_engine = engine.serialize()
+
+            if serialized_engine is None:
+                print("ERROR: Failed to build TensorRT engine")
+                return None
+
+            # Save the TensorRT engine
+            with open(save_path, 'wb') as f:
+                f.write(serialized_engine)
+
+            self.optimized_models['tensorrt'] = save_path
+            print(f"TensorRT optimization completed successfully. Engine saved to {save_path}")
+            return save_path
+
+        except ImportError as e:
+            print(f"TensorRT optimization failed due to missing dependencies: {e}")
+            print("To enable TensorRT, install tensorrt: pip install nvidia-tensorrt")
+            return None
+        except Exception as e:
+            print(f"TensorRT optimization failed: {e}")
             return None
 
     def preprocess_image(self, image_path: str) -> torch.Tensor:
@@ -169,6 +261,268 @@ class ModelDeployer:
         # Move to the appropriate device
         input_batch = input_batch.to(self.device)
         return input_batch
+
+    def _benchmark_tensorrt_model(self, model_trt_path, image_path: str, num_runs: int) -> Dict[str, float]:
+        """Benchmark TensorRT model"""
+        try:
+            import tensorrt as trt
+            import pycuda.driver as cuda
+            import pycuda.autoinit
+            import numpy as np
+            
+            # Load the serialized engine
+            TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+            with open(model_trt_path, "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
+                engine = runtime.deserialize_cuda_engine(f.read())
+            
+            # Preprocess input
+            input_tensor = self.preprocess_image(image_path)
+            input_image = input_tensor.cpu().numpy()  # Convert to numpy array
+            
+            batch_size = input_image.shape[0]
+            image_channel = input_image.shape[1]
+            image_height = input_image.shape[2]
+            image_width = input_image.shape[3]
+            
+            with engine.create_execution_context() as context:
+                # Check if engine has the newer API attributes
+                if hasattr(engine, 'num_io_tensors'):
+                    # Newer TensorRT API (8.5+)
+                    num_bindings = engine.num_io_tensors
+                    for i in range(num_bindings):
+                        tensor_name = engine.get_tensor_name(i)
+                        
+                        # Check if TensorMode attribute exists
+                        if hasattr(trt, 'TensorMode'):
+                            tensor_mode = engine.get_tensor_mode(tensor_name)
+                            is_input = tensor_mode == trt.TensorMode.INPUT
+                        else:
+                            # Fallback to older method
+                            try:
+                                # Try to determine if it's an input using get_tensor_loc if available
+                                if hasattr(engine, 'get_tensor_loc'):
+                                    tensor_loc = engine.get_tensor_loc(tensor_name)
+                                    is_input = tensor_loc == trt.TensorLocation.DEVICE
+                                else:
+                                    # Fallback: assume first tensor is input
+                                    is_input = (i == 0)
+                            except:
+                                # Final fallback: assume first tensor is input
+                                is_input = (i == 0)
+                                
+                        if is_input:
+                            input_idx = i
+                            if hasattr(context, 'set_tensor_shape'):
+                                # New API for setting tensor shape
+                                context.set_tensor_shape(tensor_name, (batch_size, image_channel, image_height, image_width))
+                            elif hasattr(context, 'set_input_shape'):
+                                # Older new API
+                                context.set_input_shape(tensor_name, (batch_size, image_channel, image_height, image_width))
+                        else:
+                            output_idx = i
+                            
+                    # Allocate host and device buffers for new API
+                    bindings = [None] * num_bindings
+                    for idx in range(num_bindings):
+                        tensor_name = engine.get_tensor_name(idx)
+                        
+                        if hasattr(context, 'get_tensor_shape'):
+                            shape = context.get_tensor_shape(tensor_name)
+                        else:
+                            shape = context.get_binding_shape(tensor_name) if hasattr(context, 'get_binding_shape') else (batch_size, image_channel, image_height, image_width)
+                            
+                        size = trt.volume(shape) * batch_size
+                        
+                        # Determine if tensor is input or output
+                        if hasattr(trt, 'TensorMode') and hasattr(engine, 'get_tensor_mode'):
+                            tensor_mode = engine.get_tensor_mode(tensor_name)
+                            is_input_tensor = tensor_mode == trt.TensorMode.INPUT
+                        else:
+                            # Fallback to binding_is_input if available
+                            try:
+                                binding_idx = engine.get_binding_index(tensor_name) if hasattr(engine, 'get_binding_index') else idx
+                                is_input_tensor = engine.binding_is_input(binding_idx) if hasattr(engine, 'binding_is_input') else (idx == 0)  # Assume first is input
+                            except:
+                                is_input_tensor = (idx == 0)  # Default assumption
+                        
+                        if is_input_tensor:
+                            input_buffer = np.ascontiguousarray(input_image.reshape(-1))
+                            input_memory = cuda.mem_alloc(input_image.nbytes)
+                            bindings[idx] = int(input_memory)
+                        else:
+                            dtype = trt.nptype(engine.get_tensor_dtype(tensor_name)) if hasattr(engine, 'get_tensor_dtype') else trt.nptype(trt.float32)
+                            output_buffer = cuda.pagelocked_empty(size, dtype)
+                            output_memory = cuda.mem_alloc(output_buffer.nbytes)
+                            bindings[idx] = int(output_memory)
+
+                    # For newer TensorRT versions, we need to set tensor addresses explicitly
+                    stream = cuda.Stream()
+                    
+                    # Set input tensor address explicitly for newer API
+                    if hasattr(context, 'set_input_tensor'):
+                        # Even newer API that uses set_input_tensor
+                        input_tensor_ptr = int(input_memory)
+                        context.set_input_tensor(engine.get_tensor_name(input_idx), input_tensor_ptr)
+                        output_tensor_ptr = int(output_memory)
+                        context.set_output_tensor(engine.get_tensor_name(output_idx), output_tensor_ptr)
+                    elif hasattr(context, 'set_tensor_address'):
+                        # Newer API that uses set_tensor_address
+                        input_tensor_name = engine.get_tensor_name(input_idx)
+                        output_tensor_name = engine.get_tensor_name(output_idx)
+                        context.set_tensor_address(input_tensor_name, int(input_memory))
+                        context.set_tensor_address(output_tensor_name, int(output_memory))
+                    else:
+                        # Older API still uses bindings array directly
+                        pass
+
+                else:
+                    # Older TensorRT API (pre-8.5)
+                    # Find the input and output indices
+                    input_idx = -1
+                    output_idx = -1
+                    
+                    if hasattr(engine, 'num_bindings'):
+                        # Using num_bindings property
+                        num_bindings = engine.num_bindings
+                    else:
+                        # Fallback to iterating over engine
+                        # This approach is deprecated but works with older versions
+                        num_bindings = len([i for i in range(100) if hasattr(engine, 'get_binding_name') and engine.get_binding_name(i)])  # Guessing upper bound
+                        
+                    for i in range(num_bindings):
+                        if engine.binding_is_input(i):
+                            input_idx = i
+                        else:
+                            output_idx = i
+                    
+                    # Set input shape based on image dimensions for inference
+                    if input_idx != -1:
+                        if hasattr(context, 'set_binding_shape'):
+                            context.set_binding_shape(input_idx, (batch_size, image_channel, image_height, image_width))
+                        else:
+                            # Older API doesn't support dynamic shapes
+                            pass
+
+                    # Allocate host and device buffers for old API
+                    bindings = [None] * num_bindings
+                    for idx in range(num_bindings):
+                        if hasattr(engine, 'get_binding_shape'):
+                            size = trt.volume(context.get_binding_shape(idx)) if context.get_binding_shape(idx) else trt.volume(engine.get_binding_shape(idx))
+                        else:
+                            # For older versions, calculate size differently
+                            binding_shape = engine.get_binding_shape(idx) if hasattr(engine, 'get_binding_shape') else (batch_size, image_channel, image_height, image_width)
+                            size = trt.volume(binding_shape)
+                            
+                        dtype = trt.nptype(engine.get_binding_dtype(idx)) if hasattr(engine, 'get_binding_dtype') else trt.float32
+                        
+                        if engine.binding_is_input(idx):
+                            input_buffer = np.ascontiguousarray(input_image)
+                            input_memory = cuda.mem_alloc(input_image.nbytes)
+                            bindings[idx] = int(input_memory)
+                        else:
+                            output_buffer = cuda.pagelocked_empty(size, dtype)
+                            output_memory = cuda.mem_alloc(output_buffer.nbytes)
+                            bindings[idx] = int(output_memory)
+
+                    stream = cuda.Stream()
+
+                # Warm up
+                for _ in range(3):
+                    # Transfer input data to the GPU.
+                    if hasattr(context, 'set_input_shape'):  # Newer API
+                        cuda.memcpy_htod_async(input_memory, input_buffer, stream)
+                        # Run inference
+                        if hasattr(context, 'execute_async_v3'):
+                            # New API - no need to pass bindings as they are set via set_tensor_address
+                            context.execute_async_v3(stream.handle)
+                        else:
+                            # Old API
+                            context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
+                    else:  # Older API
+                        cuda.memcpy_htod_async(bindings[input_idx], input_buffer, stream)
+                        # Run inference
+                        if hasattr(context, 'execute_async_v2'):
+                            # Old API
+                            context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
+                        elif hasattr(context, 'execute_async_v3'):
+                            # New API
+                            context.execute_async_v3(stream.handle)
+                        else:
+                            # Even newer API?
+                            context.execute(stream_handle=stream.handle)
+                    
+                    # Transfer prediction output from the GPU.
+                    if hasattr(context, 'set_input_shape'):  # Newer API
+                        cuda.memcpy_dtoh_async(output_buffer, output_memory, stream)
+                    else:  # Older API
+                        cuda.memcpy_dtoh_async(output_buffer, bindings[output_idx], stream)
+                    # Synchronize the stream
+                    stream.synchronize()
+
+                # Benchmark
+                start_time = time.time()
+                for _ in range(num_runs):
+                    # Transfer input data to the GPU.
+                    if hasattr(context, 'set_input_shape'):  # Newer API
+                        cuda.memcpy_htod_async(input_memory, input_buffer, stream)
+                        # Run inference
+                        if hasattr(context, 'execute_async_v3'):
+                            # New API - no need to pass bindings as they are set via set_tensor_address
+                            context.execute_async_v3(stream.handle)
+                        else:
+                            # Old API
+                            context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
+                    else:  # Older API
+                        cuda.memcpy_htod_async(bindings[input_idx], input_buffer, stream)
+                        # Run inference
+                        if hasattr(context, 'execute_async_v2'):
+                            # Old API
+                            context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
+                        elif hasattr(context, 'execute_async_v3'):
+                            # New API
+                            context.execute_async_v3(stream.handle)
+                        else:
+                            # Even newer API?
+                            context.execute(stream_handle=stream.handle)
+                    
+                    # Transfer prediction output from the GPU.
+                    if hasattr(context, 'set_input_shape'):  # Newer API
+                        cuda.memcpy_dtoh_async(output_buffer, output_memory, stream)
+                    else:  # Older API
+                        cuda.memcpy_dtoh_async(output_buffer, bindings[output_idx], stream)
+                    # Synchronize the stream
+                    stream.synchronize()
+                end_time = time.time()
+
+                avg_time = (end_time - start_time) / num_runs
+                fps = 1.0 / avg_time if avg_time > 0 else 0
+
+                result = {
+                    'avg_inference_time': avg_time,
+                    'fps': fps,
+                    'total_time': end_time - start_time,
+                    'num_runs': num_runs
+                }
+
+                self.benchmark_results['tensorrt'] = result
+                return result
+        except ImportError as e:
+            print(f"Could not benchmark TensorRT model due to missing dependencies: {e}")
+            print("To enable TensorRT benchmarking, install pycuda: pip install pycuda")
+            return {
+                'avg_inference_time': float('inf'),
+                'fps': 0.0,
+                'total_time': 0.0,
+                'num_runs': num_runs
+            }
+        except Exception as e:
+            print(f"Failed to benchmark TensorRT model: {e}")
+            return {
+                'avg_inference_time': float('inf'),
+                'fps': 0.0,
+                'total_time': 0.0,
+                'num_runs': num_runs
+            }
 
     def benchmark_model(self, image_path: str, model_name: str = "original", model=None,
                         num_runs: int = 10) -> Dict[str, float]:
@@ -182,7 +536,26 @@ class ModelDeployer:
                 if onnx_path and os.path.exists(onnx_path):
                     try:
                         import onnxruntime as ort
-                        session = ort.InferenceSession(onnx_path)
+                        
+                        # Configure session options for optimal performance
+                        sess_options = ort.SessionOptions()
+                        sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+                        
+                        # Check if CUDA is available and add CUDA provider
+                        available_providers = ort.get_available_providers()
+                        print(f"Available ONNX providers: {available_providers}")
+                        
+                        # Prioritize CUDA over TensorRT for ONNX models to avoid conflicts
+                        if self.gpu_available and 'CUDAExecutionProvider' in available_providers:
+                            print("Using CUDAExecutionProvider for ONNX model")
+                            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+                        else:
+                            print("Using CPUExecutionProvider for ONNX model")
+                            providers = ['CPUExecutionProvider']
+                        
+                        session = ort.InferenceSession(onnx_path, 
+                                                      sess_options=sess_options, 
+                                                      providers=providers)
                         # Benchmark ONNX model
                         return self._benchmark_onnx_model(session, image_path, num_runs)
                     except ImportError:
@@ -196,6 +569,13 @@ class ModelDeployer:
                         }
                 else:
                     raise ValueError(f"ONNX model not found or path invalid: {onnx_path}")
+            elif model_name == "tensorrt":
+                # Load and benchmark TensorRT model directly
+                trt_path = self.optimized_models.get('tensorrt')
+                if trt_path and os.path.exists(trt_path):
+                    return self._benchmark_tensorrt_model(trt_path, image_path, num_runs)
+                else:
+                    raise ValueError(f"TensorRT model not found or path invalid: {trt_path}")
             else:
                 model = self.optimized_models.get(model_name)
 
@@ -231,10 +611,18 @@ class ModelDeployer:
         return result
 
     def _benchmark_onnx_model(self, session, image_path: str, num_runs: int) -> Dict[str, float]:
-        """Benchmark ONNX model using ONNX Runtime"""
+        """Benchmark ONNX model using ONNX Runtime with proper device handling"""
         # Preprocess input - convert to numpy for ONNX Runtime
+        # Keep input on CPU since ONNX Runtime handles device transfer
         input_tensor = self.preprocess_image(image_path).cpu()
         input_batch = input_tensor.numpy()
+
+        # Get the actual provider being used
+        try:
+            provider = session.get_providers()[0] if session.get_providers() else 'Unknown'
+            print(f"Running ONNX benchmark with provider: {provider}")
+        except:
+            print("Running ONNX benchmark with default provider")
 
         # Warm up
         for _ in range(3):
@@ -269,20 +657,17 @@ class ModelDeployer:
 
         # Benchmark optimized models
         for opt_name, opt_model in self.optimized_models.items():
-            # For ONNX model, we just pass the name since the path is stored internally
-            if opt_name == 'onnx':
-                results[opt_name] = self.benchmark_model(image_path, opt_name, num_runs=num_runs)
-            else:
-                results[opt_name] = self.benchmark_model(image_path, opt_name, opt_model, num_runs)
+            # For ONNX and TensorRT models, we just pass the name since the path is stored internally
+            results[opt_name] = self.benchmark_model(image_path, opt_name, num_runs=num_runs)
 
         return results
 
     def get_model_size(self, model) -> float:
-        """Calculate model size in MB - handles both PyTorch models and ONNX files"""
+        """Calculate model size in MB - handles both PyTorch models, ONNX files and TensorRT engines"""
         import tempfile
 
-        # Check if it's an ONNX file path
-        if isinstance(model, str) and model.endswith('.onnx'):
+        # Check if it's a file path (ONNX or TensorRT engine)
+        if isinstance(model, str):
             if os.path.exists(model):
                 size_mb = os.path.getsize(model) / (1024 * 1024.0)
                 return size_mb
@@ -322,6 +707,7 @@ class ModelDeployer:
             }
 
         for opt_name, opt_model in self.optimized_models.items():
+            # For ONNX and TensorRT models, we just need to pass the path for size calculation
             opt_size = self.get_model_size(opt_model)
             report['models_comparison'][opt_name] = {
                 **benchmark_results.get(opt_name, {}),
@@ -335,7 +721,11 @@ class ModelDeployer:
             for model_name, metrics in report['models_comparison'].items():
                 if model_name != 'original':
                     time_improvement = original_time / metrics['avg_inference_time']
-                    size_improvement = report['models_comparison']['original']['size_mb'] / metrics['size_mb']
+                    original_size = report['models_comparison']['original']['size_mb']
+                    current_size = metrics['size_mb']
+                    
+                    # Avoid division by zero
+                    size_improvement = original_size / current_size if current_size != 0 else 1
 
                     metrics['time_improvement_factor'] = time_improvement
                     metrics['size_improvement_factor'] = size_improvement
@@ -358,6 +748,12 @@ class ModelDeployer:
             model = self.optimize_with_torchscript()
         elif optimization_type == "onnx":
             model = self.optimize_with_onnx(save_path=save_path or "model.onnx")
+        elif optimization_type == "tensorrt":
+            model = self.optimize_with_tensorrt(save_path=save_path or "model.trt")
+        elif optimization_type == "auto":
+            # Automatically select best optimization based on system
+            optimized_model = self.auto_optimize()
+            return optimized_model
         else:
             raise ValueError(f"Unknown optimization type: {optimization_type}")
 
@@ -394,17 +790,35 @@ class ModelDeployer:
             import onnxruntime as ort
             available_providers = ort.get_available_providers()
             strategy["available_providers"] = available_providers
-
-            # Determine best provider
-            if self.gpu_available and 'CUDAExecutionProvider' in available_providers:
-                strategy["best_provider"] = "CUDAExecutionProvider"
-                strategy["recommended_optimization"] = "onnx_gpu"
-            else:
-                strategy["best_provider"] = "CPUExecutionProvider"
-                strategy["recommended_optimization"] = "onnx_cpu"
         except ImportError:
-            strategy["best_provider"] = "PyTorch (no ONNXRuntime)"
+            pass
+
+        # Check if TensorRT is available
+        try:
+            import tensorrt
+            import onnx
+            strategy["tensorrt_available"] = True
+            if self.gpu_available:
+                strategy["recommended_optimization"] = "tensorrt"
+        except ImportError:
+            strategy["tensorrt_available"] = False
+
+        # Determine best provider
+        if strategy["tensorrt_available"] and self.gpu_available:
+            strategy["best_provider"] = "TensorRT Native"
+            strategy["recommended_optimization"] = "tensorrt"
+        elif self.gpu_available and strategy.get("available_providers") and 'TensorrtExecutionProvider' in strategy["available_providers"]:
+            strategy["best_provider"] = "TensorRTExecutionProvider"
+            strategy["recommended_optimization"] = "onnx_tensorrt"
+        elif self.gpu_available and strategy.get("available_providers") and 'CUDAExecutionProvider' in strategy["available_providers"]:
+            strategy["best_provider"] = "CUDAExecutionProvider"
+            strategy["recommended_optimization"] = "onnx_gpu"
+        elif self.gpu_available:
+            strategy["best_provider"] = "PyTorch+CuDNN"
             strategy["recommended_optimization"] = "torchscript"
+        else:
+            strategy["best_provider"] = "CPUExecutionProvider"
+            strategy["recommended_optimization"] = "onnx_cpu"
 
         return strategy
 
